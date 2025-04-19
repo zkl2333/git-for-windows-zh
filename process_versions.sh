@@ -48,14 +48,20 @@ log_info "找到 ${#VERSION_ARRAY[@]} 个需要处理的版本"
 successful_versions=()
 failed_versions=()
 
+# 获取本地仓库已发布的版本
+log_info "检查当前已发布的版本..."
+LOCAL_RELEASES_JSON=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+  "https://api.github.com/repos/$GITHUB_REPOSITORY/releases?per_page=100")
+LOCAL_RELEASES=$(echo "$LOCAL_RELEASES_JSON" | jq -r '.[].tag_name' | sed 's/^v//')
+
 # 遍历版本列表
 for VERSION in "${VERSION_ARRAY[@]}"; do
   log_info "----------------------------------------"
   log_info "处理版本：$VERSION"
 
-  # 检查是否已有对应的标签（防止并发运行导致的问题）
-  if git tag | grep -q "^v$VERSION$"; then
-    log_info "版本 v$VERSION 已存在，跳过。"
+  # 检查是否已有对应的Release（防止并发运行导致的问题）
+  if echo "$LOCAL_RELEASES" | grep -q "^$VERSION$"; then
+    log_info "版本 v$VERSION 已存在Release，跳过。"
     continue
   fi
 
@@ -75,35 +81,21 @@ for VERSION in "${VERSION_ARRAY[@]}"; do
     continue
   fi
 
-  # 创建 Git 标签并推送到远程仓库
-  log_info "为版本 $VERSION 创建Git标签..."
-  if ! git tag "v$VERSION"; then
-    log_error "为版本 $VERSION 创建标签失败"
-    failed_versions+=("$VERSION")
-    continue
-  fi
-  
-  if ! git push origin "v$VERSION"; then
-    log_error "为版本 $VERSION 推送标签失败"
-    # 删除本地标签
-    git tag -d "v$VERSION"
-    failed_versions+=("$VERSION")
-    continue
-  fi
-
   # 创建 GitHub Release
   log_info "为版本 $VERSION 创建GitHub Release..."
-  
+
   # 获取上游版本的详细信息，用于丰富我们的Release描述
   UPSTREAM_RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
     "https://api.github.com/repos/git-for-windows/git/releases/tags/v$VERSION")
-  
+
   # 提取上游版本的发布日期和URL
   UPSTREAM_RELEASE_DATE=$(echo "$UPSTREAM_RELEASE_INFO" | jq -r '.published_at' | cut -d'T' -f1)
   UPSTREAM_RELEASE_URL=$(echo "$UPSTREAM_RELEASE_INFO" | jq -r '.html_url')
-  
+
   # 生成美化的Release描述
   RELEASE_BODY=$(cat <<EOF
+## Git for Windows v$VERSION 中文语言包
+
 ### ℹ️ 信息
 - **原版发布日期**: $UPSTREAM_RELEASE_DATE
 - **自动构建时间**: $(date +"%Y-%m-%d")

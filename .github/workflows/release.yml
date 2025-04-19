@@ -63,7 +63,7 @@ jobs:
           echo "### 语言包构建状态: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ steps.get_new_versions.outputs.has_new_versions }}" == "true" ]]; then
-            echo "✅ 发现并处理了新版本" >> $GITHUB_STEP_SUMMARY
+            echo "✅ 发现并处理了 ${{ steps.get_new_versions.outputs.new_versions_count }} 个新版本" >> $GITHUB_STEP_SUMMARY
             if [[ -f "new_versions.txt" ]]; then
               echo "待处理的版本:" >> $GITHUB_STEP_SUMMARY
               echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -78,13 +78,20 @@ jobs:
               echo "* 失败处理的版本数: ${{ steps.process_versions.outputs.total_failed }}" >> $GITHUB_STEP_SUMMARY
               
               if [[ -n "${{ steps.process_versions.outputs.successful_versions }}" ]]; then
-                echo "成功的版本: ${{ steps.process_versions.outputs.successful_versions }}" >> $GITHUB_STEP_SUMMARY
+                echo "**成功的版本:**" >> $GITHUB_STEP_SUMMARY
+                for version in ${{ steps.process_versions.outputs.successful_versions }}; do
+                  echo "- [$version](https://github.com/${{ github.repository }}/releases/tag/v$version)" >> $GITHUB_STEP_SUMMARY
+                done
               fi
               
               if [[ -n "${{ steps.process_versions.outputs.failed_versions }}" ]]; then
-                echo "❌ 失败的版本: ${{ steps.process_versions.outputs.failed_versions }}" >> $GITHUB_STEP_SUMMARY
+                echo "**❌ 失败的版本:**" >> $GITHUB_STEP_SUMMARY
+                echo "${{ steps.process_versions.outputs.failed_versions }}" >> $GITHUB_STEP_SUMMARY
               fi
             fi
           else
             echo "ℹ️ 未发现新版本" >> $GITHUB_STEP_SUMMARY
           fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "查看所有已发布的语言包: [Releases](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY

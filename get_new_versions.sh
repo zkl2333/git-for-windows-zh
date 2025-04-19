@@ -33,26 +33,44 @@ fi
 UPSTREAM_REPO="git-for-windows/git"
 LOCAL_REPO="$GITHUB_REPOSITORY"
 
-log_info "从本地仓库获取标签..."
-# 获取本地仓库的所有标签
-LOCAL_TAGS=$(git ls-remote --tags "https://github.com/$LOCAL_REPO.git" | awk -F'/' '{print $NF}' | sed 's/^v//')
+# 获取本地仓库已发布的版本
+log_info "获取本地仓库已发布的版本..."
+LOCAL_RELEASES_JSON=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+  "https://api.github.com/repos/$LOCAL_REPO/releases?per_page=100")
 
+# 从JSON响应中提取所有tag名称，并去掉前缀'v'
+LOCAL_RELEASES=$(echo "$LOCAL_RELEASES_JSON" | jq -r '.[].tag_name' | sed 's/^v//')
+
+# 获取上游仓库的发布版本
 log_info "从上游仓库获取发布版本..."
-# 获取上游仓库的所有发布版本
-UPSTREAM_TAGS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$UPSTREAM_REPO/releases?per_page=100" | jq -r '.[].tag_name' | sed 's/^v//')
+UPSTREAM_RELEASES_JSON=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+  "https://api.github.com/repos/$UPSTREAM_REPO/releases?per_page=100")
 
 # 检查API调用是否成功
-if [ -z "$UPSTREAM_TAGS" ]; then
-  log_error "无法从上游仓库获取标签。请检查GITHUB_TOKEN和网络连接。"
+if [ -z "$UPSTREAM_RELEASES_JSON" ] || echo "$UPSTREAM_RELEASES_JSON" | jq -e 'has("message")' > /dev/null; then
+  log_error "无法从上游仓库获取版本。请检查GITHUB_TOKEN和网络连接。"
+  log_error "API响应: $UPSTREAM_RELEASES_JSON"
   exit 1
 fi
+
+# 从JSON响应中提取所有tag名称（按发布日期降序排列），并去掉前缀'v'
+UPSTREAM_RELEASES=$(echo "$UPSTREAM_RELEASES_JSON" | \
+  jq -r 'sort_by(.published_at) | reverse | .[].tag_name' | \
+  sed 's/^v//')
 
 # 计算未处理的版本
 log_info "计算未处理的版本..."
 NEW_VERSIONS=()
-for VERSION in $UPSTREAM_TAGS; do
-  if ! echo "$LOCAL_TAGS" | grep -q "^$VERSION$"; then
+NEW_VERSIONS_INFO=()
+
+# 获取所有版本号及其发布日期
+for VERSION in $UPSTREAM_RELEASES; do
+  # 检查此版本是否已在本地发布
+  if ! echo "$LOCAL_RELEASES" | grep -q "^$VERSION$"; then
+    # 查找此版本的发布日期
+    RELEASE_DATE=$(echo "$UPSTREAM_RELEASES_JSON" | jq -r --arg tag "v$VERSION" '.[] | select(.tag_name == $tag) | .published_at' | cut -d'T' -f1)
     NEW_VERSIONS+=("$VERSION")
+    NEW_VERSIONS_INFO+=("$VERSION (发布于: $RELEASE_DATE)")
   fi
 done
 
@@ -61,9 +79,15 @@ if [ ${#NEW_VERSIONS[@]} -eq 0 ]; then
   log_info "没有新版本需要处理。"
   echo "has_new_versions=false" >> "$GITHUB_OUTPUT"
 else
-  log_info "发现 ${#NEW_VERSIONS[@]} 个新版本需要处理：${NEW_VERSIONS[@]}"
+  log_info "发现 ${#NEW_VERSIONS[@]} 个新版本需要处理："
+  for VERSION_INFO in "${NEW_VERSIONS_INFO[@]}"; do
+    log_info "  - $VERSION_INFO"
+  done
+  
+  # 只保存版本号到文件中，不保存额外信息
   printf "%s\n" "${NEW_VERSIONS[@]}" > new_versions.txt
   echo "has_new_versions=true" >> "$GITHUB_OUTPUT"
+  echo "new_versions_count=${#NEW_VERSIONS[@]}" >> "$GITHUB_OUTPUT"
 fi
 
 log_info "新版本检查完成。"
