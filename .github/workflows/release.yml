@@ -8,6 +8,9 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    
+    # 添加超时设置，防止工作流无限运行
+    timeout-minutes: 30
 
     steps:
       - name: 检出仓库代码
@@ -24,6 +27,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gettext zip jq
+        # 添加错误处理
+        continue-on-error: false
 
       - name: 为脚本赋予执行权限
         run: chmod +x ./get_new_versions.sh ./process_versions.sh ./build.sh
@@ -33,11 +38,53 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: ./get_new_versions.sh
+        run: |
+          # 添加详细日志
+          echo "开始检查新版本..."
+          ./get_new_versions.sh
+          echo "新版本检查完成"
 
       - name: 处理新版本
         if: steps.get_new_versions.outputs.has_new_versions == 'true'
+        id: process_versions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: ./process_versions.sh
+        run: |
+          # 添加详细日志
+          echo "开始处理新版本..."
+          ./process_versions.sh
+          echo "新版本处理完成"
+
+      # 添加工作运行摘要
+      - name: 生成工作流运行摘要
+        if: always()
+        run: |
+          echo "### 语言包构建状态: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.get_new_versions.outputs.has_new_versions }}" == "true" ]]; then
+            echo "✅ 发现并处理了新版本" >> $GITHUB_STEP_SUMMARY
+            if [[ -f "new_versions.txt" ]]; then
+              echo "待处理的版本:" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              cat new_versions.txt >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            # 添加处理结果摘要
+            if [[ -n "${{ steps.process_versions.outputs.total_success }}" ]]; then
+              echo "#### 处理结果" >> $GITHUB_STEP_SUMMARY
+              echo "* 成功处理的版本数: ${{ steps.process_versions.outputs.total_success }}" >> $GITHUB_STEP_SUMMARY
+              echo "* 失败处理的版本数: ${{ steps.process_versions.outputs.total_failed }}" >> $GITHUB_STEP_SUMMARY
+              
+              if [[ -n "${{ steps.process_versions.outputs.successful_versions }}" ]]; then
+                echo "成功的版本: ${{ steps.process_versions.outputs.successful_versions }}" >> $GITHUB_STEP_SUMMARY
+              fi
+              
+              if [[ -n "${{ steps.process_versions.outputs.failed_versions }}" ]]; then
+                echo "❌ 失败的版本: ${{ steps.process_versions.outputs.failed_versions }}" >> $GITHUB_STEP_SUMMARY
+              fi
+            fi
+          else
+            echo "ℹ️ 未发现新版本" >> $GITHUB_STEP_SUMMARY
+          fi
