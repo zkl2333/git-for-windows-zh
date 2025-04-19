@@ -22,7 +22,7 @@
 在 PowerShell 中粘贴以下命令并按回车：
 
 ```powershell
-Invoke-WebRequest -Uri "https://cdn.jsdelivr.net/gh/zkl2333/git-for-windows-zh@main/apply_git_language_pack.ps1" -OutFile "$env:TEMP\apply_git_language_pack.ps1"; PowerShell -ExecutionPolicy Bypass -File "$env:TEMP\apply_git_language_pack.ps1"; Remove-Item -Path "$env:TEMP\apply_git_language_pack.ps1" -Force
+Invoke-WebRequest -Uri "https://cdn.jsdelivr.net/gh/zkl2333/git-for-windows-zh@main/apply_git_language_pack.ps1" -OutFile "$env:TEMP\apply_git_language_pack.ps1"; pwsh -ExecutionPolicy Bypass -File "$env:TEMP\apply_git_language_pack.ps1"; Remove-Item -Path "$env:TEMP\apply_git_language_pack.ps1" -Force
 ```
 
 此命令将自动为您的 Git 版本安装中文语言文件。
