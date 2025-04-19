@@ -34,12 +34,13 @@ UPSTREAM_REPO="git-for-windows/git"
 LOCAL_REPO="$GITHUB_REPOSITORY"
 
 # 获取本地仓库已发布的版本
-log_info "获取本地仓库已发布的版本..."
+log_info "获取本地仓库已发布的Releases..."
 LOCAL_RELEASES_JSON=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
   "https://api.github.com/repos/$LOCAL_REPO/releases?per_page=100")
 
-# 从JSON响应中提取所有tag名称，并去掉前缀'v'
-LOCAL_RELEASES=$(echo "$LOCAL_RELEASES_JSON" | jq -r '.[].tag_name' | sed 's/^v//')
+# 提取所有Release的名称中包含的版本号
+# 由于我们的Release格式是"Git for Windows v版本号 中文语言包"
+LOCAL_PROCESSED_VERSIONS=$(echo "$LOCAL_RELEASES_JSON" | jq -r '.[].name' | grep -o "v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.windows\.[0-9][0-9]*" | sed 's/^v//')
 
 # 获取上游仓库的发布版本
 log_info "从上游仓库获取发布版本..."
@@ -66,7 +67,7 @@ NEW_VERSIONS_INFO=()
 # 获取所有版本号及其发布日期
 for VERSION in $UPSTREAM_RELEASES; do
   # 检查此版本是否已在本地发布
-  if ! echo "$LOCAL_RELEASES" | grep -q "^$VERSION$"; then
+  if ! echo "$LOCAL_PROCESSED_VERSIONS" | grep -q "^$VERSION$"; then
     # 查找此版本的发布日期
     RELEASE_DATE=$(echo "$UPSTREAM_RELEASES_JSON" | jq -r --arg tag "v$VERSION" '.[] | select(.tag_name == $tag) | .published_at' | cut -d'T' -f1)
     NEW_VERSIONS+=("$VERSION")

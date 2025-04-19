@@ -49,10 +49,13 @@ successful_versions=()
 failed_versions=()
 
 # 获取本地仓库已发布的版本
-log_info "检查当前已发布的版本..."
+log_info "检查当前已发布的Releases..."
 LOCAL_RELEASES_JSON=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
   "https://api.github.com/repos/$GITHUB_REPOSITORY/releases?per_page=100")
-LOCAL_RELEASES=$(echo "$LOCAL_RELEASES_JSON" | jq -r '.[].tag_name' | sed 's/^v//')
+
+# 提取所有Release的名称中包含的版本号
+# 由于我们的Release格式是"Git for Windows v版本号 中文语言包"
+LOCAL_PROCESSED_VERSIONS=$(echo "$LOCAL_RELEASES_JSON" | jq -r '.[].name' | grep -o "v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.windows\.[0-9][0-9]*" | sed 's/^v//')
 
 # 遍历版本列表
 for VERSION in "${VERSION_ARRAY[@]}"; do
@@ -60,7 +63,7 @@ for VERSION in "${VERSION_ARRAY[@]}"; do
   log_info "处理版本：$VERSION"
 
   # 检查是否已有对应的Release（防止并发运行导致的问题）
-  if echo "$LOCAL_RELEASES" | grep -q "^$VERSION$"; then
+  if echo "$LOCAL_PROCESSED_VERSIONS" | grep -q "^$VERSION$"; then
     log_info "版本 v$VERSION 已存在Release，跳过。"
     continue
   fi
@@ -83,6 +86,15 @@ for VERSION in "${VERSION_ARRAY[@]}"; do
 
   # 创建 GitHub Release
   log_info "为版本 $VERSION 创建GitHub Release..."
+
+  # 尝试先删除可能存在的标签（如果存在）
+  # 这是一个静默操作，如果标签不存在也不会报错
+  log_info "尝试删除可能存在的标签 v$VERSION..."
+  DELETE_RESULT=$(curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+    "https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs/tags/v$VERSION")
+  
+  # 注意：即使删除失败，我们也继续尝试创建Release
+  # GitHub会在创建Release时自动创建标签
 
   # 获取上游版本的详细信息，用于丰富我们的Release描述
   UPSTREAM_RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
@@ -113,7 +125,7 @@ for VERSION in "${VERSION_ARRAY[@]}"; do
 EOF
 )
 
-  # 创建GitHub Release
+  # 创建GitHub Release，使用普通的版本号格式
   RELEASE_RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
     -H "Content-Type: application/json" \
     -d @- "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" <<EOF
