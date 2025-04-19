@@ -104,8 +104,6 @@ for VERSION in "${VERSION_ARRAY[@]}"; do
   
   # 生成美化的Release描述
   RELEASE_BODY=$(cat <<EOF
-## Git for Windows v$VERSION 中文语言包
-
 ### ℹ️ 信息
 - **原版发布日期**: $UPSTREAM_RELEASE_DATE
 - **自动构建时间**: $(date +"%Y-%m-%d")
