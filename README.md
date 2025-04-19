@@ -85,7 +85,7 @@ git config --global i18n.logoutputencoding utf-8
 
 - **输出仍为英文？**
 
-  - 确认 `LANG` 环境变量已设置为 `zh_CN.UTF-8`。
+  - 确认 `LANG` 环境变量已设置为 `zh_CN.UTF-8`。请注意，在某次**版本更新**后，**全新安装**的git包装器不再读取bash profile，如果您使用Powershell等其他Shell，请考虑在您的Shell profile中添加对应环境变量设置语句。
   - 确认语言文件正确安装。
   - 重启 Git Bash。
 
