@@ -5,11 +5,13 @@ on:
     branches: [ main, develop ]
     paths:
       - 'apply_git_language_pack.ps1'
+      - 'check_syntax_detailed.ps1'
       - '.github/workflows/test-script.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'apply_git_language_pack.ps1'
+      - 'check_syntax_detailed.ps1'
       - '.github/workflows/test-script.yml'
   workflow_dispatch:  # 允许手动触发
 
@@ -103,35 +105,7 @@ jobs:
           }
 
           Write-Host "Checking PowerShell script syntax..."
-          & $powershellExe -NoProfile -Command "
-            `$ErrorActionPreference = 'Stop'
-            try {
-              # Set encoding for proper file reading
-              if (`$PSVersionTable.PSVersion.Major -lt 6) {
-                [console]::InputEncoding = [console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
-              }
-
-              `$scriptPath = './apply_git_language_pack.ps1'
-              `$content = Get-Content -Path `$scriptPath -Raw -Encoding UTF8
-
-              Write-Host \"Script length: `$(`$content.Length) characters\"
-
-              `$errors = `$null
-              [System.Management.Automation.PSParser]::Tokenize(`$content, [ref]`$errors) | Out-Null
-
-              if (`$errors.Count -gt 0) {
-                Write-Host '❌ Syntax errors found:'
-                `$errors | ForEach-Object {
-                  Write-Host \"  Line `$(`$_.Token.StartLine): `$(`$_.Message)\"
-                }
-                exit 1
-              }
-              Write-Host '✅ Syntax check passed'
-            } catch {
-              Write-Host '❌ Syntax check failed:' `$_
-              exit 1
-            }
-          "
+          & $powershellExe -ExecutionPolicy Bypass -File check_syntax_detailed.ps1
         shell: powershell
 
       - name: 脚本逻辑验证
