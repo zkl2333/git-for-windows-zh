@@ -1,3 +1,10 @@
+# apply_git_language_pack.ps1
+
+# 编码保护 - 为Windows PowerShell设置UTF-8编码
+if ($PSVersionTable.PSVersion.Major -lt 6) {
+    [console]::InputEncoding = [console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+}
+
 # 设置您的GitHub用户名和仓库名
 $GitHubUser = "zkl2333"      # 替换为您的GitHub用户名
 $GitHubRepo = "git-for-windows-zh"    # 替换为您的GitHub仓库名

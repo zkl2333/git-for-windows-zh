@@ -5,7 +5,8 @@
 本项目为 [`git-for-windows`](https://github.com/git-for-windows/git) 提供中文语言支持，您可以通过以下方法安装并使用。
 
 ## 前提条件
-首先，需要设置系统默认编码为utf-8。具体方法如下：
+
+首先，需要设置系统默认编码为 utf-8。具体方法如下：
 
 请转到 Windows“设置”>“时间和语言”>“语言和区域”>“管理语言设置”>“更改系统区域设置”，然后选中“Beta：使用 Unicode UTF-8 获得全球语言支持”。 然后重新启动电脑，使更改生效。
 
@@ -22,7 +23,7 @@
 在 PowerShell 中粘贴以下命令并按回车：
 
 ```powershell
-Invoke-WebRequest -Uri "https://cdn.jsdelivr.net/gh/zkl2333/git-for-windows-zh@main/apply_git_language_pack.ps1" -OutFile "$env:TEMP\apply_git_language_pack.ps1"; pwsh -ExecutionPolicy Bypass -File "$env:TEMP\apply_git_language_pack.ps1"; Remove-Item -Path "$env:TEMP\apply_git_language_pack.ps1" -Force
+iwr "https://cdn.jsdelivr.net/gh/zkl2333/git-for-windows-zh@main/apply_git_language_pack.ps1" -outf "$env:TEMP\g.ps1";& "$env:TEMP\g.ps1";rm "$env:TEMP\g.ps1" -fo
 ```
 
 此命令将自动为您的 Git 版本安装中文语言文件。
@@ -53,12 +54,12 @@ git status
 
 将 Git bash 环境中的 `LANG` 环境变量设置为 `zh_CN.UTF-8`：
 
-##### 方式1：bash profile
+##### 方式 1：bash profile
 
 1. 打开`$env:USERPROFILE\.bash_profile`。
 2. 在文件适当位置添加一行`export LANG=zh_CN`，通常是在`test -f ~/.bashrc && . ~/.bashrc`之后。
 
-##### 方式2：系统环境变量
+##### 方式 2：系统环境变量
 
 1. 右键“此电脑”，选择“属性”。
 2. 点击“高级系统设置” > “环境变量”。
@@ -85,7 +86,7 @@ git config --global i18n.logoutputencoding utf-8
 
 - **输出仍为英文？**
 
-  - 确认 `LANG` 环境变量已设置为 `zh_CN.UTF-8`。请注意，在某次**版本更新**后，**全新安装**的git包装器不再读取bash profile，如果您使用Powershell等其他Shell，请考虑在您的Shell profile中添加对应环境变量设置语句。
+  - 确认 `LANG` 环境变量已设置为 `zh_CN.UTF-8`。请注意，在某次**版本更新**后，**全新安装**的 git 包装器不再读取 bash profile，如果您使用 Powershell 等其他 Shell，请考虑在您的 Shell profile 中添加对应环境变量设置语句。
   - 确认语言文件正确安装。
   - 重启 Git Bash。
 
