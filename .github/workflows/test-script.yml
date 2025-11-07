@@ -103,15 +103,27 @@ jobs:
           }
 
           Write-Host "Checking PowerShell script syntax..."
-          & $powershellExe -Command "
+          & $powershellExe -NoProfile -Command "
             `$ErrorActionPreference = 'Stop'
             try {
+              # Set encoding for proper file reading
+              if (`$PSVersionTable.PSVersion.Major -lt 6) {
+                [console]::InputEncoding = [console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+              }
+
+              `$scriptPath = './apply_git_language_pack.ps1'
+              `$content = Get-Content -Path `$scriptPath -Raw -Encoding UTF8
+
+              Write-Host \"Script length: `$(`$content.Length) characters\"
+
               `$errors = `$null
-              `$content = Get-Content -Path './apply_git_language_pack.ps1' -Raw
               [System.Management.Automation.PSParser]::Tokenize(`$content, [ref]`$errors) | Out-Null
+
               if (`$errors.Count -gt 0) {
                 Write-Host '❌ Syntax errors found:'
-                `$errors | ForEach-Object { Write-Host `$_.Message }
+                `$errors | ForEach-Object {
+                  Write-Host \"  Line `$(`$_.Token.StartLine): `$(`$_.Message)\"
+                }
                 exit 1
               }
               Write-Host '✅ Syntax check passed'
@@ -137,34 +149,34 @@ jobs:
           & $powershellExe -Command "
             try {
               # Test Git detection
-              \$gitCommand = Get-Command git -ErrorAction Stop
-              Write-Host '✅ Git detection OK: ' \$gitCommand.Source
+              `$gitCommand = Get-Command git -ErrorAction Stop
+              Write-Host '✅ Git detection OK: ' `$gitCommand.Source
 
               # Test version retrieval
-              \$gitVersionOutput = git --version
-              if (\$gitVersionOutput -match 'git version (\d+\.\d+\.\d+)') {
-                Write-Host '✅ Git version retrieval OK: ' \$Matches[1]
+              `$gitVersionOutput = git --version
+              if (`$gitVersionOutput -match 'git version (\d+\.\d+\.\d+)') {
+                Write-Host '✅ Git version retrieval OK: ' `$Matches[1]
               } else {
                 Write-Host '❌ Git version parsing failed'
                 exit 1
               }
 
               # Test script core variables and function definitions
-              \$content = Get-Content './apply_git_language_pack.ps1' -Raw
-              \$requiredItems = @('GitHubUser', 'GitHubRepo', 'PSVersionTable', 'Invoke-WebRequest', 'Expand-Archive')
+              `$content = Get-Content './apply_git_language_pack.ps1' -Raw
+              `$requiredItems = @('GitHubUser', 'GitHubRepo', 'PSVersionTable', 'Invoke-WebRequest', 'Expand-Archive')
 
-              foreach (\$item in \$requiredItems) {
-                if (\$content -match [regex]::Escape(\$item)) {
-                  Write-Host \"✅ Found required component: \$item\"
+              foreach (`$item in `$requiredItems) {
+                if (`$content -match [regex]::Escape(`$item)) {
+                  Write-Host \`"✅ Found required component: `$item\`"
                 } else {
-                  Write-Host \"❌ Missing required component: \$item\"
+                  Write-Host \`"❌ Missing required component: `$item\`"
                   exit 1
                 }
               }
 
               Write-Host '🎉 Script logic validation passed'
             } catch {
-              Write-Host \"❌ Validation failed: \$_\"
+              Write-Host \`"❌ Validation failed: `$_\`"
               exit 1
             }
           "
