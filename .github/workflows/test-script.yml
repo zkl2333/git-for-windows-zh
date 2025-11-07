@@ -76,74 +76,80 @@ jobs:
 
       - name: 验证环境
         run: |
-          # 设置编码
-          [console]::InputEncoding = [console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
-          $OutputEncoding = [System.Text.UTF8Encoding]::new()
-          $PSDefaultParameterValues['*:Encoding'] = 'utf8'
+          # 根据 PowerShell 版本设置可执行文件
+          if ('${{ matrix.powershell-version }}' -eq '5.1') {
+            $powershellExe = "powershell.exe"
+          } else {
+            $powershellExe = "pwsh.exe"
+          }
 
-          Write-Host "PowerShell 版本:"
-          & $env:POWERSHELL_EXE -Command '$PSVersionTable.PSVersion'
+          Write-Host "PowerShell Version:"
+          & $powershellExe -Command '$PSVersionTable.PSVersion'
 
-          Write-Host "Git 版本:"
-          & $env:POWERSHELL_EXE -Command "git --version"
+          Write-Host "Git Version:"
+          & $powershellExe -Command "git --version"
 
-          Write-Host "Git 安装位置:"
-          & $env:POWERSHELL_EXE -Command "(Get-Command git).Source"
+          Write-Host "Git Installation Path:"
+          & $powershellExe -Command "(Get-Command git).Source"
         shell: powershell
 
       - name: 语法检查
         run: |
-          # 设置编码
-          [console]::InputEncoding = [console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
-          $OutputEncoding = [System.Text.UTF8Encoding]::new()
-          $PSDefaultParameterValues['*:Encoding'] = 'utf8'
+          # 根据 PowerShell 版本设置可执行文件
+          if ('${{ matrix.powershell-version }}' -eq '5.1') {
+            $powershellExe = "powershell.exe"
+          } else {
+            $powershellExe = "pwsh.exe"
+          }
 
-          Write-Host "检查 PowerShell 脚本语法..."
-          & $env:POWERSHELL_EXE -Command "Get-Command -Syntax ./apply_git_language_pack.ps1"
-          Write-Host "✅ 语法检查通过"
+          Write-Host "Checking PowerShell script syntax..."
+          & $powershellExe -Command "Get-Command -Syntax ./apply_git_language_pack.ps1"
+          Write-Host "✅ Syntax check passed"
         shell: powershell
 
       - name: 脚本逻辑验证
         run: |
-          # 设置编码
-          [console]::InputEncoding = [console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
-          $OutputEncoding = [System.Text.UTF8Encoding]::new()
-          $PSDefaultParameterValues['*:Encoding'] = 'utf8'
+          # 根据 PowerShell 版本设置可执行文件
+          if ('${{ matrix.powershell-version }}' -eq '5.1') {
+            $powershellExe = "powershell.exe"
+          } else {
+            $powershellExe = "pwsh.exe"
+          }
 
-          Write-Host "验证脚本核心逻辑..."
+          Write-Host "Validating script core logic..."
 
           # 检查脚本能否正常启动和进行基本检查
-          & $env:POWERSHELL_EXE -Command "
+          & $powershellExe -Command "
             try {
-              # 测试 Git 检测
+              # Test Git detection
               \$gitCommand = Get-Command git -ErrorAction Stop
-              Write-Host '✅ Git 检测正常: ' \$gitCommand.Source
+              Write-Host '✅ Git detection OK: ' \$gitCommand.Source
 
-              # 测试版本获取
+              # Test version retrieval
               \$gitVersionOutput = git --version
               if (\$gitVersionOutput -match 'git version (\d+\.\d+\.\d+)') {
-                Write-Host '✅ Git 版本获取正常: ' \$Matches[1]
+                Write-Host '✅ Git version retrieval OK: ' \$Matches[1]
               } else {
-                Write-Host '❌ Git 版本解析失败'
+                Write-Host '❌ Git version parsing failed'
                 exit 1
               }
 
-              # 测试脚本核心变量和函数定义
+              # Test script core variables and function definitions
               \$content = Get-Content './apply_git_language_pack.ps1' -Raw
               \$requiredItems = @('GitHubUser', 'GitHubRepo', 'PSVersionTable', 'Invoke-WebRequest', 'Expand-Archive')
 
               foreach (\$item in \$requiredItems) {
                 if (\$content -match [regex]::Escape(\$item)) {
-                  Write-Host \"✅ 找到必需组件: \$item\"
+                  Write-Host \"✅ Found required component: \$item\"
                 } else {
-                  Write-Host \"❌ 缺少必需组件: \$item\"
+                  Write-Host \"❌ Missing required component: \$item\"
                   exit 1
                 }
               }
 
-              Write-Host '🎉 脚本逻辑验证通过'
+              Write-Host '🎉 Script logic validation passed'
             } catch {
-              Write-Host \"❌ 验证失败: \$_\"
+              Write-Host \"❌ Validation failed: \$_\"
               exit 1
             }
           "
@@ -151,33 +157,30 @@ jobs:
 
       - name: 测试脚本兼容性
         run: |
-          # 设置编码
-          [console]::InputEncoding = [console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
-          $OutputEncoding = [System.Text.UTF8Encoding]::new()
-          $PSDefaultParameterValues['*:Encoding'] = 'utf8'
+          # 根据 PowerShell 版本设置可执行文件
+          if ('${{ matrix.powershell-version }}' -eq '5.1') {
+            $powershellExe = "powershell.exe"
+          } else {
+            $powershellExe = "pwsh.exe"
+          }
 
-          Write-Host "测试脚本在不同 PowerShell 版本下的兼容性..."
+          Write-Host "Testing script compatibility with PowerShell ${{ matrix.powershell-version }}..."
 
           # 测试帮助信息
-          & $env:POWERSHELL_EXE -Command "Get-Help ./apply_git_language_pack.ps1 -ErrorAction SilentlyContinue"
+          & $powershellExe -Command "Get-Help ./apply_git_language_pack.ps1 -ErrorAction SilentlyContinue"
 
           # 测试脚本能否正常启动
-          Write-Host "✅ PowerShell ${{ matrix.powershell-version }} 兼容性测试通过"
+          Write-Host "✅ PowerShell ${{ matrix.powershell-version }} compatibility test passed"
         shell: powershell
 
       - name: 清理测试环境
         if: always()
         run: |
-          # 设置编码
-          [console]::InputEncoding = [console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
-          $OutputEncoding = [System.Text.UTF8Encoding]::new()
-          $PSDefaultParameterValues['*:Encoding'] = 'utf8'
-
           # 清理临时文件
           Get-ChildItem "$env:TEMP\git-lang-pack*" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
           Get-ChildItem "$env:TEMP\build-*.zip" -ErrorAction SilentlyContinue | Remove-Item -Force
 
-          Write-Host "测试环境清理完成"
+          Write-Host "Test environment cleanup completed"
         shell: powershell
 
   generate-test-summary:
