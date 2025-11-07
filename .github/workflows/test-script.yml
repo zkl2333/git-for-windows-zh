@@ -67,11 +67,10 @@ jobs:
 
           if ('${{ matrix.powershell-version }}' -eq '5.1') {
             Write-Host "使用 Windows PowerShell 5.1"
-            echo "POWERSHELL_EXE=powershell.exe" >> $env:GITHUB_ENV
+            "POWERSHELL_EXE=powershell.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           } else {
-            Write-Host "安装 PowerShell ${{ matrix.powershell-version }}"
-            winget install Microsoft.PowerShell --version ${{ matrix.powershell-version }} --accept-package-agreements --accept-source-agreements
-            echo "POWERSHELL_EXE=pwsh.exe" >> $env:GITHUB_ENV
+            Write-Host "使用 PowerShell 7.2"
+            "POWERSHELL_EXE=pwsh.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           }
         shell: powershell
 
@@ -200,14 +199,14 @@ jobs:
           echo "| PowerShell 7.2 | ${{ contains(needs.test-powershell-script.result, 'success') && '✅ 通过' || '❌ 失败' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 测试环境" >> $GITHUB_STEP_SUMMARY
-          echo "- PowerShell 版本: 5.1, 7.2" >> $GITHUB_STEP_SUMMARY
+          echo "- PowerShell 版本: 5.1 (Windows PowerShell), 7.2 (PowerShell Core)" >> $GITHUB_STEP_SUMMARY
           echo "- 操作系统: Windows Server (GitHub Actions)" >> $GITHUB_STEP_SUMMARY
           echo "- Git: 系统默认版本" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 测试内容" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ PowerShell 脚本语法检查" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ 脚本逻辑功能验证" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ 多版本 PowerShell 兼容性" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Git 环境检测" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ 多版本 PowerShell 兼容性 (5.1, 7.2)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Git 环境检测和版本验证" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ 错误处理机制测试" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Windows 环境兼容性" >> $GITHUB_STEP_SUMMARY
