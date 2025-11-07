@@ -23,7 +23,9 @@
 在 PowerShell 中粘贴以下命令并按回车：
 
 ```powershell
-iwr "https://cdn.jsdelivr.net/gh/zkl2333/git-for-windows-zh@main/apply_git_language_pack.ps1" -outf "$env:TEMP\g.ps1";& "$env:TEMP\g.ps1";rm "$env:TEMP\g.ps1" -fo
+# 下载并执行安装脚本（兼容PowerShell 5.1和7+）
+iwr "https://cdn.jsdelivr.net/gh/zkl2333/git-for-windows-zh@main/apply_git_language_pack.ps1" -outf "$env:TEMP\g.ps1"
+powershell -ExecutionPolicy Bypass -File "$env:TEMP\g.ps1"; rm "$env:TEMP\g.ps1" -fo
 ```
 
 此命令将自动为您的 Git 版本安装中文语言文件。
