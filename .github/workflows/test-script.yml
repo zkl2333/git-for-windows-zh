@@ -103,8 +103,23 @@ jobs:
           }
 
           Write-Host "Checking PowerShell script syntax..."
-          & $powershellExe -Command "Get-Command -Syntax ./apply_git_language_pack.ps1"
-          Write-Host "✅ Syntax check passed"
+          & $powershellExe -Command "
+            `$ErrorActionPreference = 'Stop'
+            try {
+              `$errors = `$null
+              `$content = Get-Content -Path './apply_git_language_pack.ps1' -Raw
+              [System.Management.Automation.PSParser]::Tokenize(`$content, [ref]`$errors) | Out-Null
+              if (`$errors.Count -gt 0) {
+                Write-Host '❌ Syntax errors found:'
+                `$errors | ForEach-Object { Write-Host `$_.Message }
+                exit 1
+              }
+              Write-Host '✅ Syntax check passed'
+            } catch {
+              Write-Host '❌ Syntax check failed:' `$_
+              exit 1
+            }
+          "
         shell: powershell
 
       - name: 脚本逻辑验证
