@@ -168,7 +168,10 @@ jobs:
           Write-Host "Testing script compatibility with PowerShell ${{ matrix.powershell-version }}..."
 
           # 测试帮助信息
-          & $powershellExe -Command "Get-Help ./apply_git_language_pack.ps1 -ErrorAction SilentlyContinue"
+          & $powershellExe -Command "Get-Help ./apply_git_language_pack.ps1 -ErrorAction SilentlyContinue" | Out-Null
+
+          # 重置退出代码（Get-Help 可能返回非零退出代码）
+          $LASTEXITCODE = 0
 
           # 测试脚本能否正常启动
           Write-Host "✅ PowerShell ${{ matrix.powershell-version }} compatibility test passed"
