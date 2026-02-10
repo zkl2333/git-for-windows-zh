@@ -14,23 +14,18 @@
 
 ### 方法一：一键安装脚本（推荐）
 
-#### 步骤 1：以管理员身份运行 PowerShell
-
-1. 点击开始菜单，搜索并右键“**Windows PowerShell**”，选择“**以管理员身份运行**”。
-
-#### 步骤 2：执行安装命令
-
-在 PowerShell 中粘贴以下命令并按回车：
+以管理员身份运行 PowerShell，然后执行：
 
 ```powershell
-# 下载并执行安装脚本（兼容PowerShell 5.1和7+）
-iwr "https://cdn.jsdelivr.net/gh/zkl2333/git-for-windows-zh@main/apply_git_language_pack.ps1" -outf "$env:TEMP\g.ps1"
-powershell -ExecutionPolicy Bypass -File "$env:TEMP\g.ps1"; rm "$env:TEMP\g.ps1" -fo
+iwr -useb https://cdn.jsdelivr.net/gh/zkl2333/git-for-windows-zh@main/install.ps1 | iex
 ```
 
-此命令将自动为您的 Git 版本安装中文语言文件。
+> **提示**：
+> - 如果未以管理员身份运行，脚本会自动提示您提升权限
+> - 兼容 PowerShell 5.1 和 7+
+> - 如果遇到执行策略限制，请先运行 `Set-ExecutionPolicy Bypass -Scope Process -Force`
 
-#### 步骤 3：重启 Git Bash 并验证
+#### 验证安装
 
 关闭所有 Git Bash 窗口，重新打开后运行：
 

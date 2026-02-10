@@ -5,12 +5,14 @@ on:
     branches: [ main, develop ]
     paths:
       - 'apply_git_language_pack.ps1'
+      - 'install.ps1'
       - 'check_syntax_detailed.ps1'
       - '.github/workflows/test-script.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'apply_git_language_pack.ps1'
+      - 'install.ps1'
       - 'check_syntax_detailed.ps1'
       - '.github/workflows/test-script.yml'
   workflow_dispatch:  # 允许手动触发
@@ -141,9 +143,22 @@ jobs:
 
               foreach (`$item in `$requiredItems) {
                 if (`$content -match [regex]::Escape(`$item)) {
-                  Write-Host \`"✅ Found required component: `$item\`"
+                  Write-Host \`"✅ Found required component in apply_git_language_pack.ps1: `$item\`"
                 } else {
-                  Write-Host \`"❌ Missing required component: `$item\`"
+                  Write-Host \`"❌ Missing required component in apply_git_language_pack.ps1: `$item\`"
+                  exit 1
+                }
+              }
+
+              # Test install.ps1 core variables and function definitions
+              `$installContent = Get-Content './install.ps1' -Raw
+              `$installRequiredItems = @('GitHubUser', 'GitHubRepo', 'PSVersionTable', 'Invoke-WebRequest', 'Expand-Archive', 'IsInRole', 'Administrator')
+
+              foreach (`$item in `$installRequiredItems) {
+                if (`$installContent -match [regex]::Escape(`$item)) {
+                  Write-Host \`"✅ Found required component in install.ps1: `$item\`"
+                } else {
+                  Write-Host \`"❌ Missing required component in install.ps1: `$item\`"
                   exit 1
                 }
               }

@@ -9,27 +9,55 @@ try {
         [console]::InputEncoding = [console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
     }
 
-    $scriptPath = './apply_git_language_pack.ps1'
+    # 要检查的脚本列表
+    $scriptsToCheck = @(
+        './apply_git_language_pack.ps1',
+        './install.ps1'
+    )
 
-    # 读取脚本内容
-    $content = Get-Content -Path $scriptPath -Raw -Encoding UTF8
+    $allPassed = $true
 
-    Write-Host "Script length: $($content.Length) characters"
+    foreach ($scriptPath in $scriptsToCheck) {
+        Write-Host "`n" + "=" * 60
+        Write-Host "检查脚本: $scriptPath" -ForegroundColor Cyan
+        Write-Host "=" * 60
 
-    # 使用 PSParser 检查语法错误
-    $errors = $null
-    [System.Management.Automation.PSParser]::Tokenize($content, [ref]$errors) | Out-Null
-
-    if ($errors.Count -gt 0) {
-        Write-Host '❌ Syntax errors found:'
-        $errors | ForEach-Object {
-            Write-Host "  Line $($_.Token.StartLine): $($_.Message)"
+        if (-not (Test-Path $scriptPath)) {
+            Write-Host "⚠️  脚本文件不存在: $scriptPath" -ForegroundColor Yellow
+            continue
         }
-        exit 1
+
+        # 读取脚本内容
+        $content = Get-Content -Path $scriptPath -Raw -Encoding UTF8
+
+        Write-Host "脚本长度: $($content.Length) 字符"
+
+        # 使用 PSParser 检查语法错误
+        $errors = $null
+        [System.Management.Automation.PSParser]::Tokenize($content, [ref]$errors) | Out-Null
+
+        if ($errors.Count -gt 0) {
+            Write-Host '❌ 发现语法错误:' -ForegroundColor Red
+            $errors | ForEach-Object {
+                Write-Host "  第 $($_.Token.StartLine) 行: $($_.Message)" -ForegroundColor Red
+            }
+            $allPassed = $false
+        } else {
+            Write-Host '✅ 语法检查通过' -ForegroundColor Green
+        }
     }
 
-    Write-Host '✅ Syntax check passed'
+    Write-Host "`n" + "=" * 60
+    if ($allPassed) {
+        Write-Host "🎉 所有脚本语法检查通过！" -ForegroundColor Green
+        Write-Host "=" * 60
+        exit 0
+    } else {
+        Write-Host "❌ 部分脚本存在语法错误" -ForegroundColor Red
+        Write-Host "=" * 60
+        exit 1
+    }
 } catch {
-    Write-Host "❌ Syntax check failed: $_"
+    Write-Host "❌ 语法检查失败: $_" -ForegroundColor Red
     exit 1
 }
