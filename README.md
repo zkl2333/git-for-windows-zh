@@ -1,6 +1,6 @@
 # git-for-windows 中文语言包使用指南
 
-![example](./example.png)
+![example](./assets/example.png)
 
 本项目为 [`git-for-windows`](https://github.com/git-for-windows/git) 提供中文语言支持，您可以通过以下方法安装并使用。
 

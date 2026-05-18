@@ -12,6 +12,11 @@ jobs:
     # 添加超时设置，防止工作流无限运行
     timeout-minutes: 30
 
+    # 自动化脚本已归入 scripts/，所有 run 步骤默认在该目录执行
+    defaults:
+      run:
+        working-directory: scripts
+
     steps:
       - name: 检出仓库代码
         uses: actions/checkout@v4
