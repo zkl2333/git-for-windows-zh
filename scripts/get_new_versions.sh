@@ -39,7 +39,7 @@ LOCAL_TAGS=$(git ls-remote --tags "https://github.com/$LOCAL_REPO.git" | awk -F'
 
 log_info "从上游仓库获取发布版本..."
 # 获取上游仓库的所有发布版本
-UPSTREAM_TAGS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$UPSTREAM_REPO/releases?per_page=100" | jq -r '.[].tag_name' | sed 's/^v//')
+UPSTREAM_TAGS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$UPSTREAM_REPO/releases?per_page=100" | jq -r '.[].tag_name | select(test("^v[0-9]+[.][0-9]+[.][0-9]+"))' | sed 's/^v//')
 
 # 检查API调用是否成功
 if [ -z "$UPSTREAM_TAGS" ]; then
