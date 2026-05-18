@@ -121,6 +121,14 @@ for VERSION in "${VERSION_ARRAY[@]}"; do
 EOF
 )
 
+  # 判断是否为预发布(RC)版本，避免 RC 语言包在 Releases 页面混入正式版
+  if [[ "$VERSION" == *-rc* ]]; then
+    IS_PRERELEASE=true
+    log_info "版本 $VERSION 为预发布(RC)版本，标记为 prerelease"
+  else
+    IS_PRERELEASE=false
+  fi
+
   # 创建GitHub Release
   RELEASE_RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
     -H "Content-Type: application/json" \
@@ -130,7 +138,7 @@ EOF
   "name": "Git for Windows v$VERSION 中文语言包",
   "body": $(echo "$RELEASE_BODY" | jq -sR .),
   "draft": false,
-  "prerelease": false
+  "prerelease": $IS_PRERELEASE
 }
 EOF
   )
