@@ -17,6 +17,17 @@ log_success() {
   echo "[成功] $1"
 }
 
+# 删除指定 Release（失败回滚用，避免残留草稿 Release）
+delete_release() {
+  local release_id="$1"
+  if [ -z "$release_id" ] || [ "$release_id" = "null" ]; then
+    return 0
+  fi
+  curl -s -o /dev/null -X DELETE \
+    -H "Authorization: token $GITHUB_TOKEN" \
+    "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/${release_id}"
+}
+
 # 添加错误处理函数
 handle_error() {
   log_error "脚本执行失败，行号: $1"
@@ -53,9 +64,9 @@ for VERSION in "${VERSION_ARRAY[@]}"; do
   log_info "----------------------------------------"
   log_info "处理版本：$VERSION"
 
-  # 检查是否已有对应的标签（防止并发运行导致的问题）
-  if git tag | grep -q "^v$VERSION$"; then
-    log_info "版本 v$VERSION 已存在，跳过。"
+  # 检查远程是否已存在该版本标签（已发布的 Release 会创建标签），防止重复处理
+  if git ls-remote --tags "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/v$VERSION" | grep -q .; then
+    log_info "版本 v$VERSION 已发布，跳过。"
     continue
   fi
 
@@ -75,24 +86,8 @@ for VERSION in "${VERSION_ARRAY[@]}"; do
     continue
   fi
 
-  # 创建 Git 标签并推送到远程仓库
-  log_info "为版本 $VERSION 创建Git标签..."
-  if ! git tag "v$VERSION"; then
-    log_error "为版本 $VERSION 创建标签失败"
-    failed_versions+=("$VERSION")
-    continue
-  fi
-  
-  if ! git push origin "v$VERSION"; then
-    log_error "为版本 $VERSION 推送标签失败"
-    # 删除本地标签
-    git tag -d "v$VERSION"
-    failed_versions+=("$VERSION")
-    continue
-  fi
-
-  # 创建 GitHub Release
-  log_info "为版本 $VERSION 创建GitHub Release..."
+  # 创建 GitHub Release（草稿模式，标签留到发布成功时由 GitHub 创建）
+  log_info "为版本 $VERSION 准备 GitHub Release..."
   
   # 获取上游版本的详细信息，用于丰富我们的Release描述
   UPSTREAM_RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
@@ -129,7 +124,9 @@ EOF
     IS_PRERELEASE=false
   fi
 
-  # 创建GitHub Release
+  # 1) 创建草稿 Release：draft=true 不会创建 Git 标签，标签仅在最终发布成功时
+  #    才由 GitHub 创建。因此中途任何失败都不残留标签，下次定时任务会重新
+  #    检测并处理该版本（自愈，避免推标签后失败导致版本被永久跳过）。
   RELEASE_RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
     -H "Content-Type: application/json" \
     -d @- "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" <<EOF
@@ -137,38 +134,54 @@ EOF
   "tag_name": "v$VERSION",
   "name": "Git for Windows v$VERSION 中文语言包",
   "body": $(echo "$RELEASE_BODY" | jq -sR .),
-  "draft": false,
+  "draft": true,
   "prerelease": $IS_PRERELEASE
 }
 EOF
   )
 
-  # 提取 Release 上传 URL
+  RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id')
   UPLOAD_URL=$(echo "$RELEASE_RESPONSE" | jq -r '.upload_url' | sed 's/{?name,label}//')
 
-  if [ "$UPLOAD_URL" != "null" ]; then
-    # 上传资产
-    log_info "上传语言包文件 $ZIP_NAME 到GitHub Release..."
-    UPLOAD_RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-      -H "Content-Type: application/zip" \
-      --data-binary @"$ZIP_NAME" \
-      "$UPLOAD_URL?name=$(basename "$ZIP_NAME")")
-    
-    # 检查上传是否成功
-    if echo "$UPLOAD_RESPONSE" | jq -e '.state == "uploaded"' &>/dev/null || echo "$UPLOAD_RESPONSE" | jq -e '.url' &>/dev/null; then
-      log_success "Release v$VERSION 及其资产已创建。"
-      successful_versions+=("$VERSION")
-    else
-      log_error "上传资产到Release v$VERSION 失败。"
-      log_error "API 响应：$UPLOAD_RESPONSE"
-      failed_versions+=("$VERSION")
-    fi
-  else
-    log_error "创建 Release v$VERSION 失败，跳过上传资产。"
+  if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ] || [ -z "$UPLOAD_URL" ] || [ "$UPLOAD_URL" = "null" ]; then
+    log_error "创建草稿 Release v$VERSION 失败，跳过此版本。"
     log_error "API 响应：$RELEASE_RESPONSE"
     failed_versions+=("$VERSION")
     continue
   fi
+
+  # 2) 上传语言包资产到草稿 Release
+  log_info "上传语言包文件 $ZIP_NAME 到草稿 Release..."
+  UPLOAD_RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+    -H "Content-Type: application/zip" \
+    --data-binary @"$ZIP_NAME" \
+    "$UPLOAD_URL?name=$(basename "$ZIP_NAME")")
+
+  if ! echo "$UPLOAD_RESPONSE" | jq -e '.state == "uploaded"' &>/dev/null \
+     && ! echo "$UPLOAD_RESPONSE" | jq -e '.url' &>/dev/null; then
+    log_error "上传资产到 Release v$VERSION 失败，删除草稿以便下次重试。"
+    log_error "API 响应：$UPLOAD_RESPONSE"
+    delete_release "$RELEASE_ID" || true
+    failed_versions+=("$VERSION")
+    continue
+  fi
+
+  # 3) 发布 Release（draft=false），此时 GitHub 才创建对应 Git 标签
+  PUBLISH_RESPONSE=$(curl -s -X PATCH -H "Authorization: token $GITHUB_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"draft": false}' \
+    "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}")
+
+  if ! echo "$PUBLISH_RESPONSE" | jq -e '.draft == false' &>/dev/null; then
+    log_error "发布 Release v$VERSION 失败，删除草稿以便下次重试。"
+    log_error "API 响应：$PUBLISH_RESPONSE"
+    delete_release "$RELEASE_ID" || true
+    failed_versions+=("$VERSION")
+    continue
+  fi
+
+  log_success "Release v$VERSION 及其资产已发布。"
+  successful_versions+=("$VERSION")
 
   # 清理生成的文件
   log_info "清理版本 $VERSION 的临时文件..."
